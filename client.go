@@ -12,6 +12,7 @@ type Client struct {
 	intClient http.Client
 	ssl       bool
 	GeodeUrl  string
+	Region string
 }
 
 // Builds a new client for Geode.

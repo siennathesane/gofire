@@ -16,19 +16,6 @@ type testRegion struct {
 	Region interface{} `json:"testRegion"`
 }
 
-type testData struct {
-	Message string `json:"message"`
-	Value   int    `json:"value"`
-}
-
-type testNestedData struct {
-	Message string `json:"message"`
-	Object struct {
-		Message string `json:"message"`
-		Value   int    `json:"value"`
-	} `json:"object"`
-}
-
 func TestMain(m *testing.M) {
 	testTargetGeode = os.Getenv("GEODE_URL")
 	m.Run()
@@ -40,6 +27,7 @@ func TestGoodNewClient(t *testing.T) {
 	assert.Equal(t, client.GeodeUrl, testTargetGeode, "client connection is good.")
 	// if we're good at this point, save it for reuse.
 	geodeTestClient = client
+	geodeTestClient.Region = "testRegion"
 }
 
 func TestBadNewClient(t *testing.T) {
@@ -60,10 +48,22 @@ func TestClient_GetRegions(t *testing.T) {
 }
 
 func TestClient_GetRegion(t *testing.T) {
-	data, err := geodeTestClient.GetRegion("testRegion", 50, false)
+	data, err := geodeTestClient.GetRegion(50, false)
 	assert.Nil(t, err, "failed to get data from testRegion.")
 	var tmpData testRegion
 	if err := json.Unmarshal(data, &tmpData); err != nil {
 		assert.Nil(t, err, "cannot unmarshal json data.")
 	}
+}
+
+func TestClient_GetKeys(t *testing.T) {
+	testKeyList := &KeyList{
+		Keys: []string{"testTypeDataKey", "testNestedKey", "testKey"},
+	}
+	keys, err := geodeTestClient.GetKeys("")
+	assert.Nil(t, err, "error getting keys.")
+	assert.EqualValues(t, testKeyList.Keys, keys.Keys)
+
+	_, err = geodeTestClient.GetKeys("doesNotExist")
+	assert.NotNil(t, err, "should return a 404 on the region.")
 }
