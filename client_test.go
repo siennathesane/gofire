@@ -33,3 +33,9 @@ func TestClient_GetServers(t *testing.T) {
 	assert.Nil(t, err, "no error when getting test servers.")
 	assert.EqualValues(t, testTargetGeode, servers[0])
 }
+
+func TestClient_GetRegions(t *testing.T) {
+	regions, err := geodeTestClient.GetRegions()
+	assert.Nil(t, err, )
+	assert.EqualValues(t, regions.RegionInfo[0].Name, "testRegion")
+}
