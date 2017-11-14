@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 )
 
 type RegionInfo struct {
@@ -95,11 +96,111 @@ func (cl Client) GetKeys(region string) (KeyList, error) {
 	case 404:
 		return keys, errors.New("specified region does not exist")
 	case 500:
-		return keys, errors.New(fmt.Sprintf("error encountered at GemFire server. check the HTTP response body for a stack trace of the exception. error: %s", err))
+		return keys, errors.New(fmt.Sprintf("error encountered at geode server. check the HTTP response body for a stack trace of the exception. error: %s", err))
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
 		return KeyList{}, err
 	}
 	return keys, nil
+}
+
+// Get a key for a given region. Leave region blank to use the configured region.
+func (cl Client) Get(key, T interface{}) (error) {
+	req, err := cl.getRequestBuilder(fmt.Sprintf("/%s/%s", cl.Region, key))
+	if err != nil {
+		return err
+	}
+
+	resp, err := cl.intClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case 200:
+	case 404:
+		return errors.New("the region or specified key is not found")
+	case 500:
+		return errors.New(fmt.Sprintf("error encountered at geode server. check the HTTP response body for a stack trace of the exception. error: %s", err))
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(body, T); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Gets the number of entries in a given region. Leave the region blank to use the existing one. -1 means error.
+func (cl Client) NumEntries(region string) (int, error) {
+	req, err := cl.headRequestBuilder(fmt.Sprintf("/%s", cl.Region))
+	if err != nil {
+		return -1, err
+	}
+
+	resp, err := cl.intClient.Do(req)
+	if err != nil {
+		return -1, err
+	}
+	entries := resp.Header.Get("Resource-Count")
+	numEntries, err := strconv.Atoi(entries)
+	if err != nil {
+		return -1, err
+	}
+	return numEntries, nil
+}
+
+// Put some data into Geode, yo.
+func (cl Client) Put(key string, val interface{}) (error) {
+	data, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+	req, err := cl.putRequestBuilder(fmt.Sprintf("/%s/%s", cl.Region, key), data)
+	if err != nil {
+		return err
+	}
+
+	resp, err := cl.intClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case 200:
+		return nil
+	case 404:
+		return errors.New("the region is not found")
+	case 500:
+		return errors.New(fmt.Sprintf("error encountered at geode server. check the HTTP response body for a stack trace of the exception. error: %s", err))
+	}
+	return nil
+}
+
+func (cl Client) Delete(key string) error {
+	req, err := cl.deleteRequestBuilder(fmt.Sprintf("/%s/%s", cl.Region, key))
+	if err != nil {
+		return err
+	}
+
+	resp, err := cl.intClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case 200:
+		return nil
+	case 404:
+		return errors.New("the region is not found")
+	case 500:
+		return errors.New(fmt.Sprintf("error encountered at geode server. check the HTTP response body for a stack trace of the exception. error: %s", err))
+	}
+	return nil
 }
