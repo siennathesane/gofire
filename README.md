@@ -19,6 +19,10 @@ geode.Put("deyTookUrData", lolwut)
 geode.Get("deyTookUrData", &holdMeDaddy)
 ```
 
+## Testing
+
+There are some test scripts in the `test-script` folder. You have to have `gfsh` in your `PATH` in order for it to work.
+
 ## Sidebar
 
 Geode uses this really wonderful concept called dynamic JSON for the `/gemfire-api/v1/{region}` API. Example:
